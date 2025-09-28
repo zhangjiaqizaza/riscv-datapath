@@ -2,44 +2,58 @@
 
 ```mermaid
 flowchart LR
-    PC[PC程序计数器] --> InstrMem[指令存储器]
-    PC --> PCAdd[PC+4]
+    %% IF阶段
+    PC[PC] --> InstMem[指令存储器]
+    PC --> Add4[+4]
     
-    InstrMem --> IFIDReg[IF/ID寄存器]
-    PCAdd --> IFIDReg
+    %% 流水线寄存器用竖线表示
+    InstMem --> PipeIF["|"]
+    Add4 --> PipeIF
     
-    IFIDReg --> Control[控制单元]
-    IFIDReg --> RegFile[寄存器堆]
-    IFIDReg --> ImmGen[立即数生成器]
-    IFIDReg --> BranchUnit[分支判断单元]
+    %% ID阶段
+    PipeIF --> Decoder[Decoder]
+    Decoder --> |rj| RegFile[寄存器堆]
+    Decoder --> |rk| RegFile
+    Decoder --> |rd| RegFile
     
-    Control --> IDEXReg[ID/EX寄存器]
-    RegFile --> IDEXReg
-    ImmGen --> IDEXReg
+    %% 寄存器堆输出
+    RegFile --> |rdata1| RjVal[rj_value]
+    RegFile --> |rdata2| RkVal[rk_value]
     
-    IDEXReg --> ALUSrc1[ALU源1选择]
-    IDEXReg --> ALUSrc2[ALU源2选择]
-    ALUSrc1 --> ALU[ALU算术逻辑单元]
-    ALUSrc2 --> ALU
+    %% 控制信号
+    Decoder --> ALUOpSig[alu_op]
+    Decoder --> RegWESig[gr_we]
     
-    IDEXReg --> BranchAddr[分支地址计算]
+    %% ID/EX流水线寄存器
+    RjVal --> PipeID["|"]
+    RkVal --> PipeID
+    ALUOpSig --> PipeID
+    RegWESig --> PipeID
     
-    ALU --> EXMEMReg[EX/MEM寄存器]
-    BranchAddr --> EXMEMReg
-    IDEXReg --> EXMEMReg
+    %% EX阶段
+    PipeID --> |src1| ALU[ALU]
+    PipeID --> |src2| ALU
+    ALU --> |res| ALUResult[alu_result]
     
-    EXMEMReg --> DataMem[数据存储器]
-    EXMEMReg --> PCMux[PC选择器]
-    PCAdd --> PCMux
+    %% EX/MEM流水线寄存器
+    ALUResult --> PipeEX["|"]
+    PipeID --> PipeEX
     
-    DataMem --> MEMWBReg[MEM/WB寄存器]
-    EXMEMReg --> MEMWBReg
+    %% MEM阶段
+    PipeEX --> |addr| DataMem[数据存储器]
+    PipeEX --> |wdata| DataMem
+    DataMem --> |rdata| MemData
     
-    MEMWBReg --> WBMux[写回选择器]
-    WBMux --> RegFile
+    %% MEM/WB流水线寄存器
+    MemData --> PipeMEM["|"]
+    PipeEX --> PipeMEM
     
-    PCMux --> PC
-    BranchUnit --> PCMux
+    %% WB阶段
+    PipeMEM --> |wdata| RegFile
+    
+    %% 控制信号传递（蓝色线）
+    ALUOpSig -.-> ALU
+    RegWESig -.-> RegFile
 ```
 
 ## 数据通路说明
